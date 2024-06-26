@@ -19,6 +19,7 @@ use sev::firmware::guest::AttestationReport;
 use sev::firmware::host::{CertTableEntry, CertType};
 use std::sync::OnceLock;
 use x509_parser::prelude::*;
+use crate::cert::fetch::vcek::vcek_url;
 
 #[derive(Serialize, Deserialize)]
 pub struct SnpEvidence {
@@ -241,9 +242,7 @@ fn verify_cert_chain(
         .filter(|e| e.cert_type == CertType::VCEK || e.cert_type == CertType::VLEK)
         .collect();
 
-    let &[key] = endorsement_keys.as_slice() else {
-        bail!("Could not find either VCEK or VLEK in cert chain")
-    };
+    let key = endorsement_keys.first().ok_or_else(|| vcek_url().map_err(|e| anyhow!("Failed to fetch VCEK URL: {}", e)))?;
 
     let decoded_key =
         x509::X509::from_der(key.data()).context("Failed to decode endorsement key")?;
